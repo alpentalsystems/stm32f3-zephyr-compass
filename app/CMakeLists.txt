@@ -11,5 +11,6 @@ target_sources(app PRIVATE
   src/main.c
   src/leds.c
   src/sensors.c
+  src/cal_store.c
   ../lib/compass/compass.c
 )
