@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run host tests
+        run: |
+          cmake -S tests/host -B build/host
+          cmake --build build/host
+          ctest --test-dir build/host --output-on-failure
+
+  firmware:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: stm32f3-zephyr-compass
+      - uses: zephyrproject-rtos/action-zephyr-setup@v1
+        with:
+          app-path: stm32f3-zephyr-compass
+          toolchains: arm-zephyr-eabi
+      - name: Build firmware
+        run: west build -b stm32f3_disco@E -d build/compass stm32f3-zephyr-compass/app
