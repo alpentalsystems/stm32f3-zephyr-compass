@@ -7,9 +7,16 @@
 #define COMPASS_ERR_NO_DATA (-1)
 #define COMPASS_ERR_SPAN (-2)
 #define COMPASS_ERR_DEGENERATE (-3)
+#define COMPASS_ERR_UNBALANCED (-4)
 
 /* Minimum per-axis magnetometer span for a valid calibration. */
 #define COMPASS_CAL_MIN_SPAN_GAUSS 0.2f
+
+/*
+ * A full rotation gives every axis a span near twice the field strength.
+ * Each span must be at least this fraction of the largest one.
+ */
+#define COMPASS_CAL_MIN_SPAN_RATIO 0.7f
 
 /* Below these magnitudes the heading is undefined. */
 #define COMPASS_MIN_ACCEL_MS2 1.0f

@@ -17,7 +17,7 @@
 - Board axes: x toward the board's N edge, y toward the E edge, z down.
 - Units: accel in m/s^2, magn in gauss, angles in degrees.
 - Ring index 0..7 = N, NE, E, SE, S, SW, W, NW = LD3, LD5, LD7, LD9, LD10, LD8, LD6, LD4.
-- Loop period 50 ms; calibration 15 s; min calibration span 0.2 gauss.
+- Loop period 50 ms; calibration 15 s; min calibration span 0.2 gauss; each span at least 0.7 x the largest span.
 - Settings key `compass/mag_offset`; NVS on `storage_partition` (6 KB = 3 x 2 KB sectors).
 - Flash patterns: 2 = uncalibrated at boot, 1 = calibration saved, 3 = calibration rejected, 5 = save failed, continuous = fatal.
 - Zephyr C style: tabs, braces on every `if`, `/* */` comments, explicit comparisons.
@@ -1673,3 +1673,14 @@ git -C stm32f3-zephyr-compass commit -m "docs: add README and CI workflow"
 - [ ] **Step 5: Push and check CI (only after the owner says to push)**
 
 Expected: both jobs pass on GitHub Actions. If `action-zephyr-setup` inputs differ from the ones above, fix the workflow from the action's README and amend this commit before the owner reviews.
+
+---
+
+### Change during execution: calibration span balance check
+
+On the board, button calibrations passed the 0.2 gauss check but gave offsets
+about 0.3 gauss off. Raw logs showed x and y never reached their extremes
+(spans 0.34/0.24/0.53 vs about 0.9 for a full rotation). Added
+`COMPASS_ERR_UNBALANCED` and `COMPASS_CAL_MIN_SPAN_RATIO` (0.7) to
+`cal_offsets`, with host tests from the measured extremes, and changed the
+calibration log messages to ask for a full flat turn first.

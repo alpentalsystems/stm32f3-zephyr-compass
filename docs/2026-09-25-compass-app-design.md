@@ -69,8 +69,13 @@ Types: `struct vec3 { float x, y, z; }` in board axes; accel in m/s^2, magn
 in gauss.
 
 - `cal_reset`, `cal_update(cal, magn)`: track per-axis min and max.
-- `cal_offsets(cal, out)`: offset = (max + min) / 2 per axis. Returns an
-  error if any axis span is below `COMPASS_CAL_MIN_SPAN_GAUSS` (0.2).
+- `cal_offsets(cal, out)`: offset = (max + min) / 2 per axis. Returns
+  `COMPASS_ERR_SPAN` if any axis span is below `COMPASS_CAL_MIN_SPAN_GAUSS`
+  (0.2), and `COMPASS_ERR_UNBALANCED` if any axis span is below
+  `COMPASS_CAL_MIN_SPAN_RATIO` (0.7) times the largest span. A full rotation
+  gives every axis a span near twice the field strength; a smaller span
+  means that axis never reached its extremes (seen on the board when the
+  board was flipped but not turned around flat).
 - `tilt_compensated_heading(accel, magn, out_deg)`: roll and pitch from
   gravity, magnetometer rotated to horizontal, heading = atan2(-Yh, Xh)
   normalized to [0, 360). Returns an error if |accel| or the horizontal
@@ -91,7 +96,8 @@ Functions return `int` (0 or negative error) where they can fail.
 - RUN, every 50 ms: read sensors, subtract offsets, EMA, heading, LED index
   with hysteresis, light that LED. Log heading at 1 Hz.
 - CALIBRATE, entered on button press: spin one LED around the ring, collect
-  min/max for 15 s. Valid result: save, flash all LEDs once, back to RUN.
+  min/max for 15 s (the user turns the board flat in a full circle, then
+  flips and tilts it). Valid result: save, flash all LEDs once, back to RUN.
   Invalid: flash all LEDs 3 times, keep old offsets, back to RUN. A button
   press during calibration cancels it.
 - `CONFIG_APP_RAW_STREAM=y`: print `RAW,ax,ay,az,mx,my,mz` at 20 Hz.
@@ -109,8 +115,8 @@ Functions return `int` (0 or negative error) where they can fail.
 
 ## Testing
 
-- Host tests (CTest), written first: calibration min/max/offsets and the
-  span check; heading for flat N/E/S/W vectors; same heading after rotating
+- Host tests (CTest), written first: calibration min/max/offsets, the
+  span check and the span balance check; heading for flat N/E/S/W vectors; same heading after rotating
   inputs by known pitch and roll; `north_led_index` around the 22.5 degree
   boundaries; hysteresis; EMA; error returns for degenerate inputs.
 - Manual board checklist in the README: axis mapping, north LED against a

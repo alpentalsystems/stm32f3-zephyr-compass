@@ -36,7 +36,7 @@ static void test_cal_offsets_are_midpoints(void)
 	struct compass_cal cal;
 	struct vec3 off;
 	struct vec3 s1 = v(0.5f, -0.1f, 0.2f);
-	struct vec3 s2 = v(-0.1f, 0.3f, -0.4f);
+	struct vec3 s2 = v(-0.1f, 0.4f, -0.4f);
 	struct vec3 s3 = v(0.2f, 0.1f, 0.0f);
 
 	cal_reset(&cal);
@@ -45,7 +45,7 @@ static void test_cal_offsets_are_midpoints(void)
 	cal_update(&cal, &s3);
 	CHECK(cal_offsets(&cal, &off) == COMPASS_OK);
 	CHECK_NEAR(off.x, 0.2f, 1e-6f);
-	CHECK_NEAR(off.y, 0.1f, 1e-6f);
+	CHECK_NEAR(off.y, 0.15f, 1e-6f);
 	CHECK_NEAR(off.z, -0.1f, 1e-6f);
 }
 
@@ -60,6 +60,30 @@ static void test_cal_small_span_is_rejected(void)
 	cal_update(&cal, &s1);
 	cal_update(&cal, &s2);
 	CHECK(cal_offsets(&cal, &off) == COMPASS_ERR_SPAN);
+}
+
+static void check_cal_extremes(struct vec3 lo, struct vec3 hi, int expected)
+{
+	struct compass_cal cal;
+	struct vec3 off;
+
+	cal_reset(&cal);
+	cal_update(&cal, &lo);
+	cal_update(&cal, &hi);
+	CHECK(cal_offsets(&cal, &off) == expected);
+}
+
+static void test_cal_unbalanced_spans_are_rejected(void)
+{
+	/* Measured on the board: no full horizontal turn, spans 0.34/0.24/0.53. */
+	check_cal_extremes(v(-0.194f, -0.141f, 0.057f), v(0.141f, 0.096f, 0.582f),
+			   COMPASS_ERR_UNBALANCED);
+}
+
+static void test_cal_balanced_spans_are_accepted(void)
+{
+	/* Measured on the board: full tumble, spans 0.88/0.85/0.67. */
+	check_cal_extremes(v(-0.452f, -0.591f, -0.625f), v(0.432f, 0.254f, 0.048f), COMPASS_OK);
 }
 
 static void test_cal_reset_clears_samples(void)
@@ -215,6 +239,8 @@ int main(void)
 	test_cal_offsets_without_samples_fails();
 	test_cal_offsets_are_midpoints();
 	test_cal_small_span_is_rejected();
+	test_cal_unbalanced_spans_are_rejected();
+	test_cal_balanced_spans_are_accepted();
 	test_cal_reset_clears_samples();
 	test_heading_level();
 	test_heading_tilted();

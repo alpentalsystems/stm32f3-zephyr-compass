@@ -25,13 +25,23 @@ void cal_update(struct compass_cal *cal, const struct vec3 *magn)
 
 int cal_offsets(const struct compass_cal *cal, struct vec3 *offset)
 {
+	float span_x;
+	float span_y;
+	float span_z;
+	float min_span;
+
 	if (cal->count == 0U) {
 		return COMPASS_ERR_NO_DATA;
 	}
-	if (((cal->max.x - cal->min.x) < COMPASS_CAL_MIN_SPAN_GAUSS) ||
-	    ((cal->max.y - cal->min.y) < COMPASS_CAL_MIN_SPAN_GAUSS) ||
-	    ((cal->max.z - cal->min.z) < COMPASS_CAL_MIN_SPAN_GAUSS)) {
+	span_x = cal->max.x - cal->min.x;
+	span_y = cal->max.y - cal->min.y;
+	span_z = cal->max.z - cal->min.z;
+	min_span = fminf(span_x, fminf(span_y, span_z));
+	if (min_span < COMPASS_CAL_MIN_SPAN_GAUSS) {
 		return COMPASS_ERR_SPAN;
+	}
+	if (min_span < COMPASS_CAL_MIN_SPAN_RATIO * fmaxf(span_x, fmaxf(span_y, span_z))) {
+		return COMPASS_ERR_UNBALANCED;
 	}
 	offset->x = (cal->max.x + cal->min.x) / 2.0f;
 	offset->y = (cal->max.y + cal->min.y) / 2.0f;
