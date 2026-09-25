@@ -80,3 +80,51 @@ int tilt_compensated_heading(const struct vec3 *accel, const struct vec3 *magn,
 	*heading_deg = heading;
 	return COMPASS_OK;
 }
+
+#define SECTOR_DEG (360.0f / (float)COMPASS_LED_COUNT)
+
+void ema_update(struct compass_ema *ema, const struct vec3 *sample, float alpha)
+{
+	if (!ema->initialized) {
+		ema->value = *sample;
+		ema->initialized = true;
+		return;
+	}
+	ema->value.x += alpha * (sample->x - ema->value.x);
+	ema->value.y += alpha * (sample->y - ema->value.y);
+	ema->value.z += alpha * (sample->z - ema->value.z);
+}
+
+static float wrap180(float deg)
+{
+	float d = fmodf(deg, 360.0f);
+
+	if (d > 180.0f) {
+		d -= 360.0f;
+	} else if (d <= -180.0f) {
+		d += 360.0f;
+	}
+	return d;
+}
+
+int north_led_index(float heading_deg, int prev_index, float hysteresis_deg)
+{
+	/* Angle of north clockwise from the N edge. */
+	float north = fmodf(360.0f - heading_deg, 360.0f);
+	int candidate;
+	float from_prev;
+
+	if (north < 0.0f) {
+		north += 360.0f;
+	}
+	candidate = (int)lroundf(north / SECTOR_DEG) % COMPASS_LED_COUNT;
+
+	if ((prev_index < 0) || (prev_index >= COMPASS_LED_COUNT) || (candidate == prev_index)) {
+		return candidate;
+	}
+	from_prev = fabsf(wrap180(north - SECTOR_DEG * (float)prev_index));
+	if (from_prev > (SECTOR_DEG / 2.0f) + hysteresis_deg) {
+		return candidate;
+	}
+	return prev_index;
+}

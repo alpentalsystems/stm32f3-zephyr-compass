@@ -15,6 +15,10 @@
 #define COMPASS_MIN_ACCEL_MS2 1.0f
 #define COMPASS_MIN_HORIZ_GAUSS 0.01f
 
+/* LED ring positions: 0 = N edge, then clockwise in 45 degree steps. */
+#define COMPASS_LED_COUNT 8
+#define COMPASS_LED_NONE (-1)
+
 /* Vector in board axes: x to the N edge, y to the E edge, z down. */
 struct vec3 {
 	float x;
@@ -28,6 +32,11 @@ struct compass_cal {
 	unsigned int count;
 };
 
+struct compass_ema {
+	struct vec3 value;
+	bool initialized;
+};
+
 void cal_reset(struct compass_cal *cal);
 void cal_update(struct compass_cal *cal, const struct vec3 *magn);
 int cal_offsets(const struct compass_cal *cal, struct vec3 *offset);
@@ -39,5 +48,15 @@ int cal_offsets(const struct compass_cal *cal, struct vec3 *offset);
  */
 int tilt_compensated_heading(const struct vec3 *accel, const struct vec3 *magn,
 			     float *heading_deg);
+
+/* Exponential moving average; the first sample sets the value. */
+void ema_update(struct compass_ema *ema, const struct vec3 *sample, float alpha);
+
+/*
+ * Ring position that points to magnetic north as seen from the board.
+ * Keeps prev_index until north is more than hysteresis_deg past the
+ * sector boundary. Pass COMPASS_LED_NONE when there is no previous index.
+ */
+int north_led_index(float heading_deg, int prev_index, float hysteresis_deg);
 
 #endif /* COMPASS_H_ */

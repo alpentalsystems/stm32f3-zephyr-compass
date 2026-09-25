@@ -156,6 +156,60 @@ static void test_heading_degenerate_inputs(void)
 	      COMPASS_ERR_DEGENERATE);
 }
 
+static void test_ema_first_sample_sets_value(void)
+{
+	struct compass_ema ema = {0};
+	struct vec3 s = v(1.0f, 2.0f, 3.0f);
+
+	ema_update(&ema, &s, 0.25f);
+	CHECK(ema.initialized);
+	CHECK_NEAR(ema.value.x, 1.0f, 1e-6f);
+	CHECK_NEAR(ema.value.y, 2.0f, 1e-6f);
+	CHECK_NEAR(ema.value.z, 3.0f, 1e-6f);
+}
+
+static void test_ema_moves_by_alpha(void)
+{
+	struct compass_ema ema = {0};
+	struct vec3 s1 = v(0.0f, 0.0f, 0.0f);
+	struct vec3 s2 = v(4.0f, -8.0f, 2.0f);
+
+	ema_update(&ema, &s1, 0.25f);
+	ema_update(&ema, &s2, 0.25f);
+	CHECK_NEAR(ema.value.x, 1.0f, 1e-6f);
+	CHECK_NEAR(ema.value.y, -2.0f, 1e-6f);
+	CHECK_NEAR(ema.value.z, 0.5f, 1e-6f);
+}
+
+static void test_led_index_without_previous(void)
+{
+	CHECK(north_led_index(0.0f, COMPASS_LED_NONE, 5.0f) == 0);
+	CHECK(north_led_index(90.0f, COMPASS_LED_NONE, 5.0f) == 6);
+	CHECK(north_led_index(180.0f, COMPASS_LED_NONE, 5.0f) == 4);
+	CHECK(north_led_index(270.0f, COMPASS_LED_NONE, 5.0f) == 2);
+	CHECK(north_led_index(45.0f, COMPASS_LED_NONE, 5.0f) == 7);
+	CHECK(north_led_index(350.0f, COMPASS_LED_NONE, 5.0f) == 0);
+}
+
+static void test_led_index_sector_boundary(void)
+{
+	/* North at 22.4 and 22.6 degrees clockwise from the N edge. */
+	CHECK(north_led_index(337.6f, COMPASS_LED_NONE, 5.0f) == 0);
+	CHECK(north_led_index(337.4f, COMPASS_LED_NONE, 5.0f) == 1);
+}
+
+static void test_led_index_hysteresis(void)
+{
+	/* North at 25 degrees: inside the hysteresis band of LED 0. */
+	CHECK(north_led_index(335.0f, 0, 5.0f) == 0);
+	/* North at 28 degrees: past the band, switch to LED 1. */
+	CHECK(north_led_index(332.0f, 0, 5.0f) == 1);
+	/* North at 20 degrees coming from LED 1: stay on LED 1. */
+	CHECK(north_led_index(340.0f, 1, 5.0f) == 1);
+	/* Wrap around: north at 355 degrees coming from LED 7 (315). */
+	CHECK(north_led_index(5.0f, 7, 5.0f) == 0);
+}
+
 int main(void)
 {
 	test_cal_offsets_without_samples_fails();
@@ -166,6 +220,11 @@ int main(void)
 	test_heading_tilted();
 	test_heading_range();
 	test_heading_degenerate_inputs();
+	test_ema_first_sample_sets_value();
+	test_ema_moves_by_alpha();
+	test_led_index_without_previous();
+	test_led_index_sector_boundary();
+	test_led_index_hysteresis();
 
 	if (failures != 0) {
 		printf("%d check(s) failed\n", failures);
