@@ -76,12 +76,96 @@ static void test_cal_reset_clears_samples(void)
 	CHECK(cal_offsets(&cal, &off) == COMPASS_ERR_NO_DATA);
 }
 
+#define DEG_TO_RAD (3.14159265f / 180.0f)
+#define GRAVITY 9.81f
+
+/* Rotate a NED world vector into board axes (yaw, then pitch, then roll). */
+static struct vec3 world_to_board(struct vec3 w, float yaw_deg, float pitch_deg, float roll_deg)
+{
+	float y = yaw_deg * DEG_TO_RAD;
+	float p = pitch_deg * DEG_TO_RAD;
+	float r = roll_deg * DEG_TO_RAD;
+	struct vec3 a = v(cosf(y) * w.x + sinf(y) * w.y, -sinf(y) * w.x + cosf(y) * w.y, w.z);
+	struct vec3 b = v(cosf(p) * a.x - sinf(p) * a.z, a.y, sinf(p) * a.x + cosf(p) * a.z);
+
+	return v(b.x, cosf(r) * b.y + sinf(r) * b.z, -sinf(r) * b.y + cosf(r) * b.z);
+}
+
+/* Accel and magn readings for a board at the given attitude. */
+static void make_inputs(float yaw, float pitch, float roll, struct vec3 *accel, struct vec3 *magn)
+{
+	struct vec3 g = world_to_board(v(0.0f, 0.0f, GRAVITY), yaw, pitch, roll);
+
+	*accel = v(-g.x, -g.y, -g.z);
+	*magn = world_to_board(v(0.30f, 0.0f, 0.40f), yaw, pitch, roll);
+}
+
+static float angle_diff(float a, float b)
+{
+	return fabsf(remainderf(a - b, 360.0f));
+}
+
+static void check_heading(float yaw, float pitch, float roll, float tol)
+{
+	struct vec3 accel;
+	struct vec3 magn;
+	float heading = -1.0f;
+
+	make_inputs(yaw, pitch, roll, &accel, &magn);
+	CHECK(tilt_compensated_heading(&accel, &magn, &heading) == COMPASS_OK);
+	CHECK(angle_diff(heading, yaw) <= tol);
+}
+
+static void test_heading_level(void)
+{
+	check_heading(0.0f, 0.0f, 0.0f, 0.1f);
+	check_heading(90.0f, 0.0f, 0.0f, 0.1f);
+	check_heading(180.0f, 0.0f, 0.0f, 0.1f);
+	check_heading(270.0f, 0.0f, 0.0f, 0.1f);
+}
+
+static void test_heading_tilted(void)
+{
+	check_heading(250.0f, -15.0f, 20.0f, 0.5f);
+	check_heading(30.0f, 25.0f, -10.0f, 0.5f);
+	check_heading(135.0f, 40.0f, 35.0f, 0.5f);
+}
+
+static void test_heading_range(void)
+{
+	struct vec3 accel;
+	struct vec3 magn;
+	float heading = -1.0f;
+
+	make_inputs(359.5f, 0.0f, 0.0f, &accel, &magn);
+	CHECK(tilt_compensated_heading(&accel, &magn, &heading) == COMPASS_OK);
+	CHECK(heading >= 0.0f);
+	CHECK(heading < 360.0f);
+}
+
+static void test_heading_degenerate_inputs(void)
+{
+	struct vec3 zero = v(0.0f, 0.0f, 0.0f);
+	struct vec3 level = v(0.0f, 0.0f, -GRAVITY);
+	struct vec3 vertical_field = v(0.0f, 0.0f, 0.5f);
+	struct vec3 magn = v(0.3f, 0.0f, 0.4f);
+	float heading;
+
+	CHECK(tilt_compensated_heading(&zero, &magn, &heading) == COMPASS_ERR_DEGENERATE);
+	CHECK(tilt_compensated_heading(&level, &vertical_field, &heading) ==
+	      COMPASS_ERR_DEGENERATE);
+}
+
 int main(void)
 {
 	test_cal_offsets_without_samples_fails();
 	test_cal_offsets_are_midpoints();
 	test_cal_small_span_is_rejected();
 	test_cal_reset_clears_samples();
+	test_heading_level();
+	test_heading_tilted();
+	test_heading_range();
+	test_heading_degenerate_inputs();
 
 	if (failures != 0) {
 		printf("%d check(s) failed\n", failures);
