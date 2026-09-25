@@ -1,0 +1,7 @@
+config APP_RAW_STREAM
+	bool "Print raw sensor data as CSV"
+	help
+	  Print RAW,ax,ay,az,mx,my,mz lines at the sample rate, in board
+	  axes and before calibration: accel in m/s^2, magn in gauss.
+
+source "Kconfig.zephyr"

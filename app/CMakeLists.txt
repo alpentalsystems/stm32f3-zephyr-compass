@@ -10,5 +10,6 @@ target_include_directories(app PRIVATE ../lib/compass/include)
 target_sources(app PRIVATE
   src/main.c
   src/leds.c
+  src/sensors.c
   ../lib/compass/compass.c
 )
