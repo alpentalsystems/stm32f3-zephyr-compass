@@ -4,6 +4,9 @@ The LED that points to magnetic north lights up on the STM32F3 Discovery
 board (MB1035 revision E). The heading stays correct when the board is
 tilted, and a button-triggered hard-iron calibration is saved in flash.
 
+Write-up (Korean, with an English summary):
+[STM32F3 Discovery와 Zephyr로 기울기 보정 나침반 만들기](https://alpentalsystems.com/posts/2026-09-stm32f3-zephyr-compass/)
+
 ## Hardware
 
 - STM32F3 Discovery, revision E (MB1035E): LSM303AGR accelerometer and
